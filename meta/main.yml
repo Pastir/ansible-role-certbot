@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: Pastir Ivan
+  role_name: certbot
+  namespace: pastir
+  description: Install certbot from snap (renewal stays with the snap timer)
+  license: MIT
+  min_ansible_version: "2.16"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+        - resolute
+  galaxy_tags:
+    - certbot
+    - letsencrypt
+    - tls
+dependencies: []
