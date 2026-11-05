@@ -1,0 +1,10 @@
+---
+# Only the apt method is testable here: snapd does not run inside containers.
+- name: Converge
+  hosts: all
+  become: true
+  roles:
+    - role: pastir.certbot
+      vars:
+        certbot_install_method: apt
+        certbot_apt_plugins: [python3-certbot-nginx]

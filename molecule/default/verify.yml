@@ -1,0 +1,66 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Certbot runs
+      ansible.builtin.command: certbot --version
+      register: __ver
+      changed_when: false
+      failed_when: __ver.rc != 0 or 'certbot' not in (__ver.stdout ~ __ver.stderr)
+
+    - name: Collect package facts
+      ansible.builtin.package_facts:
+
+    - name: Plugin installed, snapd not pulled in
+      ansible.builtin.assert:
+        that:
+          - "'python3-certbot-nginx' in ansible_facts.packages"
+          - "'snapd' not in ansible_facts.packages"
+
+    - name: Read certbot.timer state
+      ansible.builtin.systemd_service:
+        name: certbot.timer
+      register: __timer
+
+    - name: Certbot.timer is enabled and active
+      ansible.builtin.assert:
+        that:
+          - __timer.status.UnitFileState == 'enabled'
+          - __timer.status.ActiveState == 'active'
+
+    - name: Read dpkg selections
+      ansible.builtin.command: dpkg --get-selections certbot python3-certbot python3-certbot-nginx
+      register: __sel
+      changed_when: false
+
+    - name: Certbot packages are held
+      ansible.builtin.assert:
+        that:
+          - __sel.stdout_lines | length == 3
+          - __sel.stdout_lines | map('split') | map('last') | unique == ['hold']
+        fail_msg: "{{ __sel.stdout_lines }}"
+
+- name: Verify the version-change guard
+  hosts: all
+  become: true
+  tasks:
+    - name: Apply the role with a different pinned version
+      block:
+        - name: Run pastir.certbot with certbot_apt_version 0.0.1-1
+          ansible.builtin.include_role:
+            name: pastir.certbot
+          vars:
+            certbot_install_method: apt
+            certbot_apt_plugins: [python3-certbot-nginx]
+            certbot_apt_version: 0.0.1-1
+
+        - name: The role must not get here
+          ansible.builtin.fail:
+            msg: version-change guard did not fire
+      rescue:
+        - name: The guard failed the play
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name is search('Refuse implicit certbot version change')
+            fail_msg: "Unexpected failure: {{ ansible_failed_task.name }}"

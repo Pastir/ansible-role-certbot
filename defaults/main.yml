@@ -1,8 +1,26 @@
 ---
-# Installs certbot from snap. Certificate issuance and renewal are not touched:
-# the snap's own renew timer handles them.
+# How certbot is installed: `snap` (classic snap linked into PATH, renewal by
+# snap.certbot.renew.timer) or `apt` (Ubuntu package, renewal by certbot.timer).
+# Certificate issuance and renewal are never touched by the role.
+certbot_install_method: snap
+
+# --- snap method ---
+# Snap channel to install certbot from.
 certbot_snap_channel: stable
 # Link /snap/bin/certbot to this path.
 certbot_link: /usr/bin/certbot
-# Remove the apt-packaged certbot (conflicts with the snap one).
+# Remove the apt-packaged certbot and its nginx/apache plugins (they conflict with the snap one).
+# Only used with the snap method; the apt method never removes anything.
 certbot_remove_apt_package: true
+
+# --- apt method ---
+# Version of the `certbot` package, e.g. "2.9.0-1" or "2.9.*". Empty: any version (state present).
+certbot_apt_version: ""
+# Extra plugin packages installed alongside certbot, e.g. [python3-certbot-nginx].
+certbot_apt_plugins: []
+# Hold certbot, the plugins and python3-certbot (if installed) with dpkg_selections,
+# so an unattended apt upgrade cannot move them.
+certbot_apt_hold: true
+# Allow changing the installed certbot version (passes the hold) when it differs from
+# certbot_apt_version. With false the role fails before changing anything.
+certbot_allow_upgrade: false

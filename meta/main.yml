@@ -3,7 +3,7 @@ galaxy_info:
   author: Pastir Ivan
   role_name: certbot
   namespace: pastir
-  description: Install certbot from snap (renewal stays with the snap timer)
+  description: Install certbot from snap or apt (renewal stays with the packaged timer)
   license: MIT
   min_ansible_version: "2.16"
   platforms:

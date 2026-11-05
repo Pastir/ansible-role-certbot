@@ -1,0 +1,47 @@
+---
+- name: Remove apt-packaged certbot
+  ansible.builtin.apt:
+    name: [certbot, python3-certbot-nginx, python3-certbot-apache]
+    state: absent
+  when: certbot_remove_apt_package
+  tags: [certbot, certbot_install]
+
+- name: Install snapd
+  ansible.builtin.apt:
+    name: snapd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags: [certbot, certbot_install]
+
+# In --check snapd may only be "would be installed": the snap command does not exist yet,
+# so the snap-dependent tasks below are skipped instead of failing.
+- name: Check whether the snap command exists
+  ansible.builtin.stat:
+    path: /usr/bin/snap
+  register: __certbot_snap_bin
+  tags: [certbot, certbot_install]
+
+- name: Install certbot snap
+  community.general.snap:
+    name: certbot
+    classic: true
+    channel: "{{ certbot_snap_channel }}"
+  when: not ansible_check_mode or __certbot_snap_bin.stat.exists
+  tags: [certbot, certbot_install]
+
+- name: Link certbot into PATH
+  ansible.builtin.file:
+    src: /snap/bin/certbot
+    dest: "{{ certbot_link }}"
+    state: link
+    force: true
+  tags: [certbot, certbot_install]
+
+- name: Make sure the renew timer is enabled
+  ansible.builtin.systemd_service:
+    name: snap.certbot.renew.timer
+    enabled: true
+    state: started
+  when: not ansible_check_mode
+  tags: [certbot, certbot_config]

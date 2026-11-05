@@ -1,0 +1,12 @@
+---
+- name: Validate certbot_install_method
+  ansible.builtin.assert:
+    that:
+      - certbot_install_method in ['snap', 'apt']
+      - certbot_apt_plugins is sequence
+      - certbot_apt_plugins is not string
+    fail_msg: >-
+      certbot_install_method must be 'snap' or 'apt' (got '{{ certbot_install_method }}'),
+      certbot_apt_plugins must be a list.
+    quiet: true
+  tags: [certbot]

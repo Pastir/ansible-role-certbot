@@ -1,0 +1,55 @@
+---
+- name: Collect installed packages
+  ansible.builtin.package_facts:
+  tags: [certbot, certbot_install]
+
+- name: Refuse implicit certbot version change
+  ansible.builtin.assert:
+    that:
+      - certbot_allow_upgrade or
+        ansible_facts.packages['certbot'][0].version is match('^' ~ (certbot_apt_version | regex_escape | replace('\\*', '.*')) ~ '$')
+    fail_msg: >-
+      certbot {{ ansible_facts.packages['certbot'][0].version }} is installed, but {{ certbot_apt_version }}
+      is required. Run with -e certbot_allow_upgrade=true to change it (passes the dpkg hold).
+    quiet: true
+  when:
+    - certbot_apt_version | length > 0
+    - "'certbot' in ansible_facts.packages"
+  tags: [certbot, certbot_install]
+
+- name: Install certbot package
+  ansible.builtin.apt:
+    name: >-
+      {{ ['certbot' ~ (('=' ~ certbot_apt_version) if certbot_apt_version | length > 0 else '')]
+         + certbot_apt_plugins }}
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+    allow_change_held_packages: "{{ certbot_allow_upgrade | bool }}"
+    allow_downgrade: "{{ certbot_allow_upgrade | bool }}"
+  register: __certbot_apt_install
+  tags: [certbot, certbot_install]
+
+- name: Refresh installed packages
+  ansible.builtin.package_facts:
+  when: certbot_apt_hold and __certbot_apt_install is changed
+  tags: [certbot, certbot_install]
+
+# python3-certbot is the core library certbot depends on: hold it too so the pair stays in sync.
+# Packages that are only "would be installed" in --check are not in the facts and are skipped.
+- name: Hold certbot packages
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: "{{ (['certbot', 'python3-certbot'] + certbot_apt_plugins) | select('in', ansible_facts.packages) | list }}"
+  when: certbot_apt_hold
+  tags: [certbot, certbot_install]
+
+# Skipped in --check when the package is only "would be installed": the unit does not exist yet.
+- name: Make sure certbot.timer is enabled
+  ansible.builtin.systemd_service:
+    name: certbot.timer
+    enabled: true
+    state: started
+  when: not (ansible_check_mode and __certbot_apt_install is changed)
+  tags: [certbot, certbot_config]
