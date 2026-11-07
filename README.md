@@ -7,6 +7,10 @@ Issuing and renewing certificates is **never** managed: the role does not touch 
 run `certbot certonly/renew`. Renewal is left to the timer shipped with the chosen install method; the role only
 makes sure that timer is enabled and started.
 
+## Requirements
+
+- ansible-core >= 2.16, collection `community.general` (snap method) (`requirements.yml` in the role root)
+
 ## Install methods
 
 ### `snap` (default, behaviour of 1.0.0)
@@ -84,10 +88,13 @@ roles:
   - name: pastir.certbot
     src: git+git@github.com:Pastir/ansible-role-certbot.git
     version: main  # or a tag
+# A role cannot install collections by itself: the project lists them (see requirements.yml in the role root).
+collections:
+  - name: community.general
 ```
 
 ```bash
-ansible-galaxy install -r requirements.yml
+ansible-galaxy install -r requirements.yml   # roles and collections
 ```
 
 ## License
